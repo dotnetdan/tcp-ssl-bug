@@ -5,6 +5,7 @@ VisualStudioVersion = 14.0.23107.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{7D31A2CA-6F8E-45C0-8FA2-3A9A121F58E7}"
 	ProjectSection(SolutionItems) = preProject
+		local.pfx = local.pfx
 		readme.md = readme.md
 	EndProjectSection
 EndProject

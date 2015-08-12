@@ -6,6 +6,17 @@ I've discovered a breaking change in .NET 4.6 that applies to WCF services that 
 
 This project contains a full repro for the issue, consisting of a self hosted WCF service console application and a WCF client console application.  To run the project, simply hit F5 in visual studio.  You must run VS as an admin.
 
+### Running the repro
+
+First, install the self-signed SSL certificate "local.pfx" into Current User/Personal.
+
+This can be done using the visual studio command prompt:
+
+```
+    certmgr.exe /add /c local.pfx /s my /r currentUser
+```
+
+Or by double clicking the local.pfx file.
 
 ### The Service
 
@@ -54,7 +65,8 @@ using (var channelFactory = new ChannelFactory<INetTcpService>("NetTcpBinding_IS
 ## Conditions
 
 - Application targets NET 4.5.x
-- WCF service using custom binding with NETTCP transport and SSL security.
+- WCF service using custom binding with NETTCP transport and SSL security. 
+    - The issue does not occur when using standard NETTCP binding
 - Host machine has 4.6 installed
 
 ## Errors
