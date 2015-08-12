@@ -1,10 +1,13 @@
-# .NET 4.6 breaking change for WCF custom bindings using NETTCP protocol with SSL security
+# .NET 4.6 breaking change for WCF services using custom bindings with NETTCP & SSL.
 
 ## Description
 
-I discovered a case in which a pair of C# client/server applications targetting .NET 4.5.x stops working on computers that upgrade to .NET 4.6.
+I've discovered a breaking change in .NET 4.6 that applies to WCF services that use custom bindings with NETTCP protocol and SSL transport security.
 
-The issue was found on WCF services configured via custom binding with NETTCP tranmission protocol with SSL security.
+This project contains a full repro for the issue, consisting of a self hosted WCF service console application and a WCF client console application.  To run the project, simply hit F5 in visual studio.  You must run VS as an admin.
+
+
+### The Service
 
 ```xml
 <customBinding>
@@ -16,33 +19,63 @@ The issue was found on WCF services configured via custom binding with NETTCP tr
 </customBinding>
 ```
 
+```csharp
+[ServiceContract]
+public interface INetTcpService
+{
+    [OperationContract]
+    string SayHello(string name);
+}
+
+public class NetTcpService : INetTcpService
+{
+    public string SayHello(string name)
+    {
+        return string.Format("Hello, {0}!", name);
+    }
+}
+```
+
+
+### The Client
+
+```csharp
+using (var channelFactory = new ChannelFactory<INetTcpService>("NetTcpBinding_IService1"))
+{
+    channelFactory.Open();
+    var client = channelFactory.CreateChannel();
+
+    //The following line will throw an exception if 4.6 is installed on the machine.
+    string result = client.SayHello(Environment.UserName);
+    Console.WriteLine("Recieved response, '{0}'", result);
+}
+
+```
 ## Conditions
 
-- NET 4.6 is installed
 - Application targets NET 4.5.x
 - WCF service using custom binding with NETTCP transport and SSL security.
+- Host machine has 4.6 installed
 
-## Symptoms
+## Errors
 
-The WCF service host starts with no issue.
+The WCF service host starts without issue.
 	
-When the client attempts to call the service, `CommunicationException` is encountered:
+When the client attempts to call the service, `CommunicationException` occurs:
 
 > The socket connection was aborted. This could be caused by an error processing your message 
 > or a receive timeout being exceeded by the remote host, or an underlying network resource issue. 
 > Local socket timeout was '00:10:00'.
 
 
-WCF error tracing on the service reveals a `System.ComponentModel.Win32Exception` :
+Diagnostic WCF tracing on the service reveals a `System.ComponentModel.Win32Exception` :
 
 > The client and server cannot communicate, because they do not possess a common algorithm
 
 
-## New sslProtocols attribute, a false workaround
+## Workaround (Requires 4.6)
 
-The trace shows that issue is SSL related.  NET 4.6. introduced an enhancement to WCF that allows ssl protocols to be selected in the binding configuration.  Specifying sslProtocol on the server side binding resolves the issue.  However, it appears that this was only added for .NET 4.6, so this only works on machines that have 4.6 installed.  Oddly, even though the application still targets 4.5.x, the attribute can still be used when .NET 4.6 is installed.  
-
-Had the new sslProtocols attribute been backported to 4.5.x, then at least it could have been used to resolve the issue.  Apparently it is a planned feature in the .NET core version of WCF: https://github.com/dotnet/wcf/issues/39
+Setting the attribute `sslProtocols="Ssl3"` (not specific to Ssl3, other protocols work) on `<sslStreamSecurity>` resolves this issue, however this attribute can only be used if the application targets .NET 4.6.  Otherwise an error occurs saying that it is not a valid attribute.  It appears that there are plans to backport this attribute to 4.5.x in the future: https://github.com/dotnet/wcf/issues/39
 
 ```xml
 <customBinding>
@@ -54,7 +87,11 @@ Had the new sslProtocols attribute been backported to 4.5.x, then at least it co
 </customBinding>
 ```
 
-#### Full server-side exception
+
+## Full Exception Details
+
+Server Sice WCF Trace:
+
 ```xml
 <E2ETraceEvent xmlns="http://schemas.microsoft.com/2004/06/E2ETraceEvent">
 <System xmlns="http://schemas.microsoft.com/2004/06/windows/eventlog/system">
@@ -154,7 +191,7 @@ at System.Threading._IOCompletionCallback.PerformIOCompletionCallback(UInt32 err
 </E2ETraceEvent> 
 ```
 
-#### Full client-side exception:
+Client Exception:
 ```
 System.ServiceModel.CommunicationException was unhandled
 HResult=-2146233087
