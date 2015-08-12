@@ -18,6 +18,8 @@ This can be done using the visual studio command prompt:
 
 Or by double clicking the local.pfx file.
 
+Then, just hit F5 in VS.
+
 ### The Service
 
 ```xml
